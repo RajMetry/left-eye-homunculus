@@ -1,0 +1,34 @@
+name: Bug report
+description: Report a reproducible issue in LEFT EYE.
+title: "bug: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please do not include patient data, personal information, recordings, API keys, or passwords.
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: Describe the issue without sensitive information.
+      placeholder: Expected behaviour vs actual behaviour
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      placeholder: 1. Open... 2. Click... 3. Observe...
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and version
+      placeholder: e.g. Chrome current stable
+  - type: textarea
+    id: checks
+    attributes:
+      label: Checks already tried
+      description: Include whether npm test passes and whether this occurred locally or on Pages.

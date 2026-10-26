@@ -1,0 +1,15 @@
+.DS_Store
+Thumbs.db
+node_modules/
+*.log
+.env
+.env.*
+!.env.example
+dist/
+playwright-report/
+test-results/
+.idea/
+.vscode/
+Desktop.ini
+!*.env.example
+coverage/

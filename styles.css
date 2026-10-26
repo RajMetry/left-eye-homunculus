@@ -1,0 +1,158 @@
+/* ==========================================================================
+       DUAL-MODE THEME ARCHITECTURE: RIGHT EYE (CLINICAL) vs LEFT EYE (MANGA)
+       ========================================================================== */
+    :root {
+      /* RIGHT EYE DEFAULT: Alabaster / Slate-50 Clinical Theme */
+      --bg-main: #f8fafc;
+      --bg-panel: rgba(255, 255, 255, 0.92);
+      --bg-card: #f1f5f9;
+      --bg-input: #ffffff;
+      --text-primary: #0f172a;
+      --text-secondary: #475569;
+      --text-muted: #64748b;
+      --border-color: #cbd5e1;
+      --accent-primary: #0284c7;
+      --accent-secondary: #10b981;
+      --panel-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.06), 0 8px 10px -6px rgba(15, 23, 42, 0.04);
+    }
+
+    body.left-eye-mode {
+      /* LEFT EYE ACTIVE: Pitch-Black (#070709) Brutalist Manga Homunculus Theme */
+      --bg-main: #070709;
+      --bg-panel: rgba(15, 15, 21, 0.92);
+      --bg-card: #15151e;
+      --bg-input: #0a0a0f;
+      --text-primary: #f8fafc;
+      --text-secondary: #cbd5e1;
+      --text-muted: #71717a;
+      --border-color: rgba(225, 29, 72, 0.45);
+      --accent-primary: #e11d48;
+      --accent-secondary: #f43f5e;
+      --panel-shadow: 0 0 30px -5px rgba(225, 29, 72, 0.22);
+    }
+
+    body {
+      background-color: var(--bg-main);
+      color: var(--text-primary);
+      transition: background-color 0.45s cubic-bezier(0.16, 1, 0.3, 1), color 0.3s ease;
+    }
+
+    .theme-panel {
+      background-color: var(--bg-panel);
+      border-color: var(--border-color);
+      box-shadow: var(--panel-shadow);
+      transition: background-color 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease;
+    }
+
+    .theme-card {
+      background-color: var(--bg-card);
+      border-color: var(--border-color);
+      transition: all 0.35s ease;
+    }
+
+    .theme-input {
+      background-color: var(--bg-input);
+      border-color: var(--border-color);
+      color: var(--text-primary);
+      transition: all 0.3s ease;
+    }
+
+    .theme-text-primary { color: var(--text-primary); }
+    .theme-text-secondary { color: var(--text-secondary); }
+    .theme-text-muted { color: var(--text-muted); }
+
+    /* Manga Halftone Screentone & Clinical Grid Overlays */
+    .clinical-grid {
+      background-image: 
+        linear-gradient(to right, rgba(15, 23, 42, 0.04) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(15, 23, 42, 0.04) 1px, transparent 1px);
+      background-size: 24px 24px;
+    }
+
+    .manga-screentone {
+      background-image: 
+        radial-gradient(rgba(225, 29, 72, 0.16) 1.25px, transparent 1.25px),
+        radial-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+      background-size: 10px 10px, 20px 20px;
+      background-position: 0 0, 5px 5px;
+    }
+
+    /* Scanline Overlay for Left Eye Mode */
+    .scanlines {
+      background: linear-gradient(
+        rgba(18, 16, 16, 0) 50%, 
+        rgba(0, 0, 0, 0.32) 50%
+      ), linear-gradient(
+        90deg,
+        rgba(225, 29, 72, 0.03),
+        rgba(0, 255, 128, 0.01),
+        rgba(0, 128, 255, 0.03)
+      );
+      background-size: 100% 3px, 6px 100%;
+      pointer-events: none;
+    }
+
+    /* Custom Scrollbars */
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(100, 116, 139, 0.4);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #e11d48;
+    }
+
+    /* Voice Waveform Animation Bars */
+    @keyframes wave-bounce {
+      0%, 100% { height: 4px; }
+      50% { height: 18px; }
+    }
+    .wave-bar {
+      width: 3px;
+      background-color: #e11d48;
+      border-radius: 9999px;
+      animation: wave-bounce 0.7s infinite ease-in-out;
+    }
+    .wave-bar:nth-child(2) { animation-delay: 0.15s; }
+    .wave-bar:nth-child(3) { animation-delay: 0.3s; }
+    .wave-bar:nth-child(4) { animation-delay: 0.1s; }
+    .wave-bar:nth-child(5) { animation-delay: 0.25s; }
+
+    /* Print Styling for Clinical Dossier (Unclipped Multi-Page Support) */
+    @media print {
+      body {
+        background: #ffffff !important;
+        overflow: visible !important;
+        height: auto !important;
+      }
+      #topNav, main, #scanlineOverlay, #toast {
+        display: none !important;
+      }
+      #dossierModal {
+        position: static !important;
+        display: block !important;
+        background: transparent !important;
+        padding: 0 !important;
+        overflow: visible !important;
+      }
+      #printModalContent {
+        position: static !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 16px !important;
+        color: #0f172a !important;
+        background: #ffffff !important;
+        border: none !important;
+        box-shadow: none !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+    }

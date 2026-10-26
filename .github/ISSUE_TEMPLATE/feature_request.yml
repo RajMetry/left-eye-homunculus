@@ -1,0 +1,27 @@
+name: Feature request
+description: Suggest a focused improvement.
+title: "feature: "
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please keep requests privacy-conscious and non-diagnostic. Do not share health records or personal information.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+      placeholder: What would be easier or clearer?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      placeholder: Describe the change and its value.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered

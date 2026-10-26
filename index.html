@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LEFT EYE — Somatic Body Metaphor Visualizer</title>
+  <meta name="description" content="An interactive 3D art and reflection prototype that maps written body metaphors into visual somatic regions. Not a diagnostic tool." />
+  <meta name="theme-color" content="#070709" />
+  <link rel="icon" href="./assets/left-eye-mark.svg" type="image/svg+xml" />
+  <meta name="referrer" content="no-referrer" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.tailwindcss.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://unpkg.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-src 'none'; media-src 'self' blob: data:;">
+  <meta property="og:title" content="LEFT EYE — Somatic Body Metaphor Visualizer" />
+  <meta property="og:description" content="Explore body metaphors with an interactive 3D visualizer. A creative prototype, not a medical or psychological assessment." />
+  <meta property="og:type" content="website" />
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com/3.4.17" referrerpolicy="no-referrer"></script>
+  
+  <!-- Three.js and OrbitControls -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" referrerpolicy="no-referrer"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js" referrerpolicy="no-referrer"></script>
+  
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@0.468.0" referrerpolicy="no-referrer"></script>
+
+  <!-- System fonts only: no third-party font requests. -->
+  <script src="./tailwind-config.js" defer></script>
+<link rel="stylesheet" href="./styles.css">
+</head>
+<body class="clinical-grid antialiased font-sans overflow-x-hidden min-h-screen flex flex-col" id="bodyElement">
+
+  <!-- Scanline & Vignette Filter Overlay (Active in Left Eye Mode) -->
+  <div id="scanlineOverlay" class="scanlines fixed inset-0 z-40 opacity-0 transition-opacity duration-500 pointer-events-none"></div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-24 opacity-0 transition-all duration-300 theme-panel border px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 text-xs font-mono">
+    <span class="w-2.5 h-2.5 rounded-full bg-crimson animate-ping shrink-0"></span>
+    <span id="toastMessage" class="theme-text-primary font-medium">Cortical engine ready.</span>
+  </div>
+
+  <!-- ================= TOP NAVIGATION BAR ================= -->
+  <header class="theme-panel border-b sticky top-0 z-30 px-3 sm:px-6 py-2.5 backdrop-blur-md" id="topNav">
+    <div class="max-w-[1600px] mx-auto flex flex-wrap items-center justify-between gap-3">
+      
+      <!-- Brand Identity & Active Mode Telemetry -->
+      <div class="flex items-center gap-3">
+        <div id="brandIconBox" class="w-9 h-9 rounded-xl bg-sky-500/10 border border-sky-500/40 flex items-center justify-center text-sky-600 transition-all duration-300">
+          <i data-lucide="scan-eye" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <h1 class="font-extrabold tracking-tight text-sm sm:text-base uppercase theme-text-primary flex items-center gap-2">
+              LEFT EYE <span class="text-[11px] font-mono font-semibold px-2 py-0.5 rounded-md bg-crimson/10 text-crimson border border-crimson/30">// SOMATIC HOMUNCULUS ENGINE</span>
+            </h1>
+            <span id="modeBadge" class="text-[10px] font-mono font-bold uppercase px-2.5 py-0.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 text-emerald-600">
+              RIGHT EYE // NEUTRAL 1.0x
+            </span>
+          </div>
+          <p class="text-[11px] theme-text-muted font-mono hidden md:block">
+            Interactive 3D body-metaphor visualizer • exploratory, not diagnostic
+          </p>
+        </div>
+      </div>
+
+      <!-- Top-Bar Interactive Controls: Live Mini Webcam Sensor, Audio Synth, Settings & Master Toggle -->
+      <div class="flex items-center gap-2 sm:gap-3">
+        
+        <!-- Live Mini Webcam "Cover Right Eye" Detector in Top Bar -->
+        <div class="flex items-center gap-2 theme-card border rounded-xl px-2.5 py-1">
+          <div id="miniCamWrapper" class="hidden relative w-12 h-8 rounded overflow-hidden bg-black border border-crimson/50 shrink-0">
+            <video id="topWebcamVideo" autoplay playsinline muted class="w-full h-full object-cover transform -scale-x-100"></video>
+            <!-- Right-Eye Target ROI Box -->
+            <div id="eyeRoiBox" class="absolute top-1 left-1 w-5 h-4 border border-emerald-400 bg-emerald-400/10 transition-colors pointer-events-none" title="Sample brightness region — not eye tracking"></div>
+            <canvas id="hiddenCamCanvas" width="64" height="48" class="hidden"></canvas>
+          </div>
+
+          <button id="webcamSensorBtn" data-action="toggleLiveEyeSensor" class="text-[11px] font-mono font-semibold theme-text-secondary hover:text-crimson transition flex items-center gap-1.5 py-1 px-1" title="Experimental camera luminance demo; may be triggered by lighting changes">
+            <i data-lucide="camera" id="camIcon" class="w-3.5 h-3.5"></i>
+            <span id="camStatusText" class="hidden xl:inline">Camera Demo: OFF</span>
+          </button>
+
+          <!-- Calibrate / Simulate Occlusion Button when cam is active -->
+          <button id="simulateCoverBtn" data-action="triggerManualOcclusion" class="hidden text-[10px] font-mono bg-crimson/15 hover:bg-crimson text-crimson hover:text-white border border-crimson/40 px-2 py-0.5 rounded transition" title="Simulate covering right eye">
+            Cover Test
+          </button>
+        </div>
+
+        <!-- Web Audio Sound Effect Toggle -->
+        <button id="audioToggleBtn" data-action="toggleAudioDrone" class="p-2 rounded-xl theme-card border hover:border-crimson transition flex items-center gap-1.5 text-xs font-mono theme-text-secondary" title="Toggle synthesized sound effect">
+          <i data-lucide="volume-2" id="audioIcon" class="w-4 h-4"></i>
+          <span class="hidden lg:inline text-[11px]" id="audioLabel">Audio SFX</span>
+        </button>
+<!-- PROMINENT MASTER TOGGLE BUTTON: COVER RIGHT EYE -->
+        <button id="masterEyeToggle" data-action="toggleEyeMode" data-action-arg="UI_BUTTON" class="relative px-3.5 sm:px-4 py-2 rounded-xl font-mono text-xs font-bold uppercase tracking-wider transition-all duration-300 flex items-center gap-2.5 shadow-md bg-slate-900 text-white hover:bg-crimson border border-slate-700">
+          <span id="eyeSwitchDot" class="w-2.5 h-2.5 rounded-full bg-emerald-400 transition-all duration-300"></span>
+          <span id="eyeButtonText">COVER RIGHT EYE (TOGGLE LEFT EYE)</span>
+          <kbd class="hidden sm:inline-block text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-white/80 border border-white/20">SPACE</kbd>
+        </button>
+
+      </div>
+    </div>
+  </header>
+
+  <!-- ================= MAIN 3-COLUMN DASHBOARD LAYOUT ================= -->
+  <main class="flex-1 max-w-[1600px] w-full mx-auto p-3 sm:p-4 lg:p-5 grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-5 items-stretch">
+    
+    <!-- ================= COLUMN 1: LEFT PANEL (INPUT, VOICE MIC, 3 PRESETS & OVERRIDES) ================= -->
+    <section class="lg:col-span-4 xl:col-span-3 flex flex-col gap-4">
+      
+      <!-- 1A. Patient Somatic Input & Voice Mic Card -->
+      <div class="theme-panel border rounded-2xl p-4 backdrop-blur-md">
+        <div class="flex items-center justify-between mb-2">
+          <div class="flex items-center gap-2">
+            <i data-lucide="mic" class="w-4 h-4 text-crimson"></i>
+            <h2 class="text-xs font-mono font-bold uppercase tracking-wider theme-text-primary">Patient Somatic Input</h2>
+          </div>
+          <span id="engineLatencyBadge" class="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/30 font-semibold">
+            Local demo heuristic
+          </span>
+        </div>
+
+        <p class="text-[11px] theme-text-secondary mb-2.5 leading-relaxed">
+          Describe a body sensation or metaphor. The 3D figure maps your words into a symbolic visual sketch.
+        </p>
+        <p class="text-[10px] leading-relaxed theme-text-muted mb-3 border-l-2 border-amber-500/70 pl-2" role="note">
+          Creative exploration only. The scores and translations are unvalidated examples, not medical or psychological findings. Do not use this for diagnosis or urgent symptoms.
+        </p>
+
+        <!-- Symptom Textarea with Animated Waveform Overlay -->
+        <div class="relative mb-2.5">
+          <textarea id="patientInput" rows="3" class="w-full theme-input border rounded-xl p-3 text-xs placeholder-slate-400 focus:outline-none focus:border-crimson focus:ring-1 focus:ring-crimson transition resize-none font-sans leading-relaxed" placeholder="e.g., My chest feels like it's caving in under heavy rusted iron, my head won't stop buzzing with static, and my left hand feels hollow..."></textarea>
+          
+          <!-- Live Voice Waveform Indicator -->
+          <div id="voiceWaveformBox" class="hidden absolute bottom-2.5 right-2.5 bg-void/90 border border-crimson/50 px-2.5 py-1 rounded-lg flex items-center gap-2 shadow-lg">
+            <div class="flex items-center gap-0.5 h-4">
+              <div class="wave-bar"></div>
+              <div class="wave-bar"></div>
+              <div class="wave-bar"></div>
+              <div class="wave-bar"></div>
+              <div class="wave-bar"></div>
+            </div>
+            <span id="voiceStatusLabel" class="text-[10px] font-mono text-crimson font-bold uppercase">Dictating...</span>
+          </div>
+        </div>
+
+        <!-- Mic Button + Analyze Button Row -->
+        <div class="flex items-center gap-2">
+          <button id="micBtn" data-action="toggleVoiceInput" class="px-3 py-2.5 rounded-xl theme-card border hover:border-crimson theme-text-primary hover:text-crimson transition flex items-center gap-1.5 text-xs font-mono font-semibold shrink-0" title="Private on-device speech recognition only; type if unavailable">
+            <i data-lucide="mic" id="micIcon" class="w-4 h-4"></i>
+            <span id="micBtnLabel">Speak</span>
+          </button>
+
+          <button id="analyzeBtn" data-action="processSomaticInput" class="flex-1 py-2.5 px-3 rounded-xl bg-crimson hover:bg-crimson-600 text-white font-mono text-xs font-bold uppercase tracking-wider transition shadow-lg shadow-crimson/25 flex items-center justify-center gap-2">
+            <i data-lucide="zap" class="w-4 h-4"></i>
+            <span id="analyzeBtnText">Analyze Somatic State</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 1B. 3 Instant 1-Click Demo Presets (Zero Latency) -->
+      <div class="theme-panel border rounded-2xl p-4 backdrop-blur-md">
+        <div class="flex items-center justify-between mb-2.5">
+          <h3 class="text-xs font-mono font-bold uppercase tracking-wider theme-text-primary flex items-center gap-1.5">
+            <i data-lucide="sparkles" class="w-3.5 h-3.5 text-crimson"></i>
+            Instant Stage Presets
+          </h3>
+          <span class="text-[10px] font-mono theme-text-muted">Example data</span>
+        </div>
+
+        <div class="space-y-2">
+          <!-- Case 01 -->
+          <button data-action="loadPreset" data-action-arg="1" class="w-full text-left p-2.5 rounded-xl theme-card border hover:border-crimson transition group flex items-start gap-2.5">
+            <span class="px-2 py-1 rounded-md bg-amber-500/15 border border-amber-500/40 text-amber-500 font-mono text-[10px] font-bold shrink-0">
+              CASE 01
+            </span>
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold theme-text-primary group-hover:text-crimson transition truncate">The Iron Chest</span>
+                <span class="text-[10px] font-mono theme-text-muted">Pressure metaphor</span>
+              </div>
+              <p class="text-[10px] font-mono theme-text-secondary truncate mt-0.5">
+                Chest: RUST_METAL 1.85x • Head: SAND_STATIC 1.95x • L.Hand: 0.65x
+              </p>
+            </div>
+          </button>
+
+          <!-- Case 02 -->
+          <button data-action="loadPreset" data-action-arg="2" class="w-full text-left p-2.5 rounded-xl theme-card border hover:border-crimson transition group flex items-start gap-2.5">
+            <span class="px-2 py-1 rounded-md bg-crimson/15 border border-crimson/40 text-crimson font-mono text-[10px] font-bold shrink-0">
+              CASE 02
+            </span>
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold theme-text-primary group-hover:text-crimson transition truncate">Glass Migraine & Static</span>
+                <span class="text-[10px] font-mono theme-text-muted">Sharpness metaphor</span>
+              </div>
+              <p class="text-[10px] font-mono theme-text-secondary truncate mt-0.5">
+                Head: GLASS_FRACTURE 2.25x • Neck: RUST 1.55x • R.Arm: STATIC 1.65x
+              </p>
+            </div>
+          </button>
+
+          <!-- Case 03 -->
+          <button data-action="loadPreset" data-action-arg="3" class="w-full text-left p-2.5 rounded-xl theme-card border hover:border-crimson transition group flex items-start gap-2.5">
+            <span class="px-2 py-1 rounded-md bg-cyan-500/15 border border-cyan-500/40 text-cyan-500 font-mono text-[10px] font-bold shrink-0">
+              CASE 03
+            </span>
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold theme-text-primary group-hover:text-crimson transition truncate">Submerged Burnout</span>
+                <span class="text-[10px] font-mono theme-text-muted">Shutdown metaphor</span>
+              </div>
+              <p class="text-[10px] font-mono theme-text-secondary truncate mt-0.5">
+                Chest: WATER 1.75x • Abdomen: SMOKE_VOID 0.6x • Legs: RUST 1.65x
+              </p>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      <!-- 1C. Live Somatic Override Controls (60fps Limb Scale & Material Selector) -->
+      <div class="theme-panel border rounded-2xl p-4 backdrop-blur-md flex-1 flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-xs font-mono font-bold uppercase tracking-wider theme-text-primary flex items-center gap-1.5">
+              <i data-lucide="sliders" class="w-3.5 h-3.5 text-crimson"></i>
+              Live Somatic Override (Live)
+            </h3>
+            <button data-action="resetAllLimbs" class="text-[10px] font-mono text-crimson hover:underline font-semibold">
+              Reset All 1.0x
+            </button>
+          </div>
+
+          <!-- Target Region & Shader Material Pickers -->
+          <div class="grid grid-cols-2 gap-2 mb-3">
+            <div>
+              <label class="block text-[10px] font-mono uppercase theme-text-muted mb-1">Body Region</label>
+              <select id="overrideRegionSelect" data-change-action="syncOverrideControls" class="w-full theme-input border rounded-lg px-2.5 py-1.5 text-xs font-mono focus:outline-none focus:border-crimson">
+                <option value="Head">Head (Cephalic)</option>
+                <option value="Neck">Neck (Cervical)</option>
+                <option value="Chest" selected>Chest (Thorax)</option>
+                <option value="Abdomen">Abdomen (Core)</option>
+                <option value="LeftArm">LeftArm</option>
+                <option value="RightArm">RightArm</option>
+                <option value="LeftHand">LeftHand</option>
+                <option value="RightHand">RightHand</option>
+                <option value="Legs">Legs (Foundation)</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-[10px] font-mono uppercase theme-text-muted mb-1">Manga Shader</label>
+              <select id="overrideShaderSelect" data-change-action="applyManualOverride" class="w-full theme-input border rounded-lg px-2.5 py-1.5 text-xs font-mono focus:outline-none focus:border-crimson">
+                <option value="RUST_METAL">RUST_METAL (Weight)</option>
+                <option value="SAND_STATIC">SAND_STATIC (Jitter)</option>
+                <option value="WATER">WATER (Submerged)</option>
+                <option value="GLASS_FRACTURE">GLASS_FRACTURE (Sharp)</option>
+                <option value="SMOKE_VOID">SMOKE_VOID (Hollow)</option>
+                <option value="NORMAL">NORMAL (Baseline)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Active Region Scale Slider -->
+          <div class="theme-card border rounded-xl p-3 mb-3">
+            <div class="flex items-center justify-between text-xs font-mono mb-1.5">
+              <span class="theme-text-secondary" id="overrideSliderLabel">Chest Scale Multiplier</span>
+              <span class="text-crimson font-bold text-sm" id="overrideScaleValue">1.85x</span>
+            </div>
+            <input id="overrideScaleSlider" type="range" min="0.5" max="2.5" step="0.05" value="1.85" data-input-action="applyManualOverride" class="w-full h-1.5 bg-slate-300 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-crimson">
+            <div class="flex justify-between text-[9px] font-mono theme-text-muted mt-1">
+              <span>0.5x (Numb/Void)</span>
+              <span>1.0x (Neutral)</span>
+              <span>2.5x (Extreme Hyper)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Shader Legend Pills -->
+        <div class="pt-2 border-t border-slate-200/40 dark:border-zinc-800/80 flex flex-wrap gap-1.5">
+          <span class="text-[9px] font-mono px-2 py-0.5 rounded bg-amber-900/20 text-amber-500 border border-amber-600/30">RUST: Weight</span>
+          <span class="text-[9px] font-mono px-2 py-0.5 rounded bg-rose-500/15 text-rose-500 border border-rose-500/30">STATIC: Noise</span>
+          <span class="text-[9px] font-mono px-2 py-0.5 rounded bg-cyan-500/15 text-cyan-500 border border-cyan-500/30">WATER: Submerged</span>
+          <span class="text-[9px] font-mono px-2 py-0.5 rounded bg-purple-500/15 text-purple-400 border border-purple-500/30">GLASS: Sharpness</span>
+          <span class="text-[9px] font-mono px-2 py-0.5 rounded bg-zinc-500/20 text-zinc-400 border border-zinc-500/30">VOID: Hollow</span>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ================= COLUMN 2: CENTER PANEL (3D INTERACTIVE CORTICAL VIEWPORT) ================= -->
+    <section class="lg:col-span-5 xl:col-span-6 flex flex-col relative rounded-2xl theme-panel border overflow-hidden min-h-[520px] lg:min-h-[680px]">
+      
+      <!-- Top Viewport Telemetry & Camera Bar -->
+      <div class="absolute top-3.5 left-3.5 right-3.5 z-20 flex items-center justify-between pointer-events-none">
+        <div class="theme-panel border px-3 py-1.5 rounded-xl backdrop-blur-md flex items-center gap-2.5 pointer-events-auto">
+          <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" id="fpsDot"></span>
+          <div>
+            <div class="text-[10px] font-mono uppercase tracking-wider font-bold theme-text-primary" id="viewportModeHeader">
+              3D BODY METAPHOR // RIGHT EYE (1.0x)
+            </div>
+            <div class="text-[9px] font-mono theme-text-muted" id="aiSyncStatus">
+              Click any limb to inspect • Press [Space] to project Left Eye
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-1.5 pointer-events-auto">
+          <button data-action="toggleCalloutLabels" id="hudToggleBtn" class="px-2.5 py-1.5 rounded-xl theme-panel border hover:border-crimson text-[10px] font-mono font-semibold theme-text-secondary transition flex items-center gap-1" title="Toggle Floating 3D Callout Badges">
+            <i data-lucide="tag" class="w-3.5 h-3.5 text-crimson"></i>
+            <span class="hidden sm:inline">HUD Tags</span>
+          </button>
+          <button data-action="toggleAutoRotate" id="rotateBtn" class="p-2 rounded-xl theme-panel border hover:border-crimson theme-text-secondary transition" title="Toggle Turntable Rotation">
+            <i data-lucide="rotate-3d" class="w-4 h-4 text-crimson"></i>
+          </button>
+          <button data-action="resetCameraView" class="p-2 rounded-xl theme-panel border hover:border-crimson theme-text-secondary transition" title="Reset Camera Orbit">
+            <i data-lucide="focus" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- 3D WebGL Canvas Container -->
+      <div id="threeCanvasContainer" class="w-full h-full flex-1 cursor-grab active:cursor-grabbing relative"></div>
+
+      <!-- Floating 2D-Projected Anatomical Callout Badges Container -->
+      <div id="hudCalloutsContainer" class="absolute inset-0 pointer-events-none overflow-hidden z-10"></div>
+
+      <!-- Bottom Viewport Archetype Banner -->
+      <div class="absolute bottom-3.5 left-3.5 right-3.5 z-20 pointer-events-none flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
+        <div class="theme-panel border px-4 py-2.5 rounded-xl backdrop-blur-md pointer-events-auto flex items-center gap-3">
+          <div class="w-8 h-8 rounded-lg bg-crimson/15 border border-crimson/40 flex items-center justify-center text-crimson shrink-0">
+            <i data-lucide="brain-circuit" class="w-4 h-4"></i>
+          </div>
+          <div class="min-w-0">
+            <div class="text-[9px] font-mono uppercase tracking-widest theme-text-muted">Active Somatic Archetype</div>
+            <div class="text-xs sm:text-sm font-extrabold font-mono text-crimson truncate" id="hudArchetypeBanner">
+              The Armored Pressure Vessel
+            </div>
+          </div>
+        </div>
+
+        <div class="theme-panel border px-3 py-2 rounded-xl backdrop-blur-md pointer-events-auto flex items-center justify-between gap-3">
+          <span class="text-[10px] font-mono theme-text-secondary"> Eye State:</span>
+          <button data-action="toggleEyeMode" data-action-arg="HUD_PILL" id="bottomQuickEyeBtn" class="px-2.5 py-1 rounded-lg bg-crimson text-white font-mono text-[10px] font-bold uppercase tracking-wider hover:bg-crimson-600 transition">
+            Switch Eye [Space]
+          </button>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ================= COLUMN 3: RIGHT PANEL (THE CLINICAL BRIDGE & DOSSIER) ================= -->
+    <section class="lg:col-span-3 xl:col-span-3 flex flex-col gap-4">
+      
+      <!-- 3A. Illustrative projection score -->
+      <div class="theme-panel border rounded-2xl p-4 backdrop-blur-md">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="text-xs font-mono font-bold uppercase tracking-wider theme-text-primary flex items-center gap-1.5">
+            <i data-lucide="activity" class="w-4 h-4 text-crimson"></i>
+            Projection Index (demo)
+          </h3>
+          <span id="distortionScoreBadge" class="text-xs font-mono font-extrabold px-2 py-0.5 rounded-md bg-crimson/15 text-crimson border border-crimson/30">
+            84 / 100
+          </span>
+        </div>
+
+        <!-- Animated Progress Bar -->
+        <div class="w-full h-2.5 rounded-full bg-slate-200 dark:bg-zinc-900 overflow-hidden border border-slate-300 dark:border-zinc-800 mb-2">
+          <div id="distortionMeterBar" class="h-full bg-gradient-to-r from-emerald-500 via-amber-500 to-crimson transition-all duration-700" style="width: 84%"></div>
+        </div>
+
+        <div class="flex items-center justify-between text-[10px] font-mono theme-text-muted">
+          <span>Illustrative projection intensity</span>
+          <span id="activeArchetypeSub" class="theme-text-primary font-semibold truncate max-w-[160px]">The Iron Chest</span>
+        </div>
+      </div>
+
+      <!-- 3B. Regional Translation Cards (Left Eye Metaphor vs Right Eye Clinical) -->
+      <div class="theme-panel border rounded-2xl p-4 backdrop-blur-md flex-1 flex flex-col min-h-[220px]">
+        <div class="flex items-center justify-between mb-2.5">
+          <h3 class="text-xs font-mono font-bold uppercase tracking-wider theme-text-primary flex items-center gap-1.5">
+            <i data-lucide="git-compare" class="w-3.5 h-3.5 text-crimson"></i>
+            The Metaphor Bridge
+          </h3>
+          <span id="regionCountBadge" class="text-[10px] font-mono px-2 py-0.5 rounded theme-card border theme-text-secondary">
+            3 Active Regions
+          </span>
+        </div>
+
+        <div id="regionsTranslationList" class="space-y-2.5 overflow-y-auto max-h-[250px] pr-1 flex-1">
+          <!-- Populated dynamically via JS -->
+        </div>
+      </div>
+
+      <!-- 3C. Reflection prompt & optional questions -->
+      <div class="theme-panel border border-crimson/40 rounded-2xl p-4 backdrop-blur-md relative overflow-hidden">
+        <div class="flex items-center gap-1.5 mb-1.5">
+          <i data-lucide="eye-off" class="w-4 h-4 text-crimson"></i>
+          <h3 class="text-xs font-mono font-bold uppercase tracking-wider text-crimson">Reflection Prompt</h3>
+        </div>
+        <p id="blindspotBoxText" class="text-[11px] theme-text-primary leading-relaxed mb-3">
+          Ask what this metaphor means to the speaker; do not assume a hidden emotion or cause.
+        </p>
+
+        <div class="border-t border-slate-200/50 dark:border-zinc-800 pt-2.5">
+          <div class="text-[10px] font-mono font-bold uppercase theme-text-muted mb-1.5 flex items-center gap-1">
+            <i data-lucide="help-circle" class="w-3 h-3 text-crimson"></i>
+            Optional Reflection Questions:
+          </div>
+          <ul id="clinicianQuestionsList" class="space-y-1 text-[11px] theme-text-secondary list-disc list-inside leading-snug">
+            <!-- Populated dynamically -->
+          </ul>
+        </div>
+      </div>
+
+      <!-- 3D. Export exploration report -->
+      <button data-action="openDossierModal" class="w-full py-3 px-4 rounded-2xl bg-slate-900 dark:bg-zinc-100 text-white dark:text-slate-950 hover:bg-crimson dark:hover:bg-crimson dark:hover:text-white font-mono text-xs font-bold uppercase tracking-wider transition flex items-center justify-center gap-2 shadow-lg">
+        <i data-lucide="file-check-2" class="w-4 h-4"></i>
+        <span>Export Exploration Report (PDF / Print)</span>
+      </button>
+
+    </section>
+
+  </main>
+  <!-- ================= CLINICAL DOSSIER PRINT / PDF MODAL ================= -->
+  <div id="dossierModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 hidden overflow-y-auto">
+    <div id="printModalContent" class="bg-white text-slate-900 border border-slate-300 rounded-2xl max-w-3xl w-full p-6 sm:p-8 shadow-2xl relative my-8">
+      
+      <!-- Header -->
+      <div class="flex items-start justify-between border-b-2 border-slate-900 pb-4 mb-5">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="text-[10px] font-mono uppercase px-2 py-0.5 bg-crimson text-white font-bold rounded">LEFT EYE // EXPLORATION PROTOTYPE</span>
+            <span class="text-xs font-mono text-slate-500" id="dossierTimestamp">Not yet generated</span>
+          </div>
+          <h2 class="text-xl font-extrabold uppercase tracking-tight text-slate-900 mt-1">Somatic Exploration Report</h2>
+          <p class="text-xs text-slate-600 font-mono">Interactive body-metaphor visualization summary</p>
+        </div>
+        <button data-action="closeDossierModal" class="no-print text-slate-400 hover:text-slate-900 p-1">
+          <i data-lucide="x" class="w-6 h-6"></i>
+        </button>
+      </div>
+
+      <!-- Summary Row -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5 font-mono text-xs">
+        <div class="bg-slate-100 p-3 rounded-xl border border-slate-200">
+          <span class="text-[10px] text-slate-500 block uppercase">SOMATIC ARCHETYPE</span>
+          <span class="font-bold text-slate-900 text-sm" id="dossierArchetype">-</span>
+        </div>
+        <div class="bg-slate-100 p-3 rounded-xl border border-slate-200">
+          <span class="text-[10px] text-slate-500 block uppercase">PROJECTION INDEX (DEMO)</span>
+          <span class="font-bold text-crimson text-sm" id="dossierIndex">-</span>
+        </div>
+        <div class="bg-slate-100 p-3 rounded-xl border border-slate-200">
+          <span class="text-[10px] text-slate-500 block uppercase">AFFECTED REGIONS</span>
+          <span class="font-bold text-slate-900 text-sm" id="dossierRegionCount">-</span>
+        </div>
+      </div>
+
+      <!-- Patient Verbatim Quote -->
+      <div class="mb-5">
+        <h4 class="text-xs font-mono font-bold uppercase text-slate-500 mb-1.5">1. Verbatim Patient Somatic Statement (Left Eye Input)</h4>
+        <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200 italic text-sm text-slate-800" id="dossierQuote">
+          -
+        </div>
+      </div>
+
+      <!-- Region Table -->
+      <div class="mb-5">
+        <h4 class="text-xs font-mono font-bold uppercase text-slate-500 mb-2">2. Visual mapping & possible neutral phrasing</h4>
+        <div class="border border-slate-200 rounded-xl overflow-hidden">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-100 font-mono text-slate-600 border-b border-slate-200">
+              <tr>
+                <th class="p-3">Body Region</th>
+                <th class="p-3">Visual Scale</th>
+                <th class="p-3">Symbolic Shader</th>
+                <th class="p-3">Body Metaphor</th>
+                <th class="p-3">Possible neutral phrasing (not diagnosis)</th>
+              </tr>
+            </thead>
+            <tbody id="dossierTableBody" class="divide-y divide-slate-200 text-slate-800">
+              <!-- Populated dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Blindspot & Clinician Follow-up -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div class="p-4 rounded-xl bg-rose-50 border border-rose-200">
+          <h4 class="text-xs font-mono font-bold uppercase text-crimson mb-1">3. Reflection prompt (speculative)</h4>
+          <p class="text-xs text-slate-800 leading-relaxed" id="dossierBlindspot">-</p>
+        </div>
+        <div class="p-4 rounded-xl bg-slate-50 border border-slate-200">
+          <h4 class="text-xs font-mono font-bold uppercase text-slate-700 mb-1">4. Optional reflection questions</h4>
+          <ul id="dossierQuestions" class="list-disc list-inside text-xs text-slate-700 space-y-1">
+            <!-- Populated dynamically -->
+          </ul>
+        </div>
+      </div>
+
+      <div class="mb-5 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs leading-relaxed text-amber-950">
+        <strong>Prototype disclaimer:</strong> This report is an exploratory visualization generated from text, preset data, and/or a language model. Scores and interpretations are not validated measurements and are not medical or psychological diagnoses. Do not use this report to make treatment decisions. Seek qualified care for health concerns; urgent or severe symptoms require urgent medical attention.
+      </div>
+
+      <!-- Modal Footer Actions -->
+      <div class="no-print flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
+        <button data-action="printPage" class="py-2.5 px-5 rounded-xl bg-crimson hover:bg-crimson-600 text-white font-mono text-xs font-bold uppercase transition flex items-center gap-2 shadow-lg">
+          <i data-lucide="printer" class="w-4 h-4"></i>
+          Print / Save PDF
+        </button>
+        <button data-action="closeDossierModal" class="py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-mono text-xs font-semibold transition">
+          Close Window
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ================= APPLICATION JAVASCRIPT ENGINE ================= -->
+  <script src="./app.js" defer></script>
+</body>
+</html>

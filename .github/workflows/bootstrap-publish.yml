@@ -1,0 +1,73 @@
+name: Publish LEFT EYE to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - name: Clean initial publication history
+        if: github.event_name == 'push' && github.event.head_commit.message == 'Enable GitHub Pages automatically'
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The archive unpack and source tests are already complete. Keep the
+          # first public source history clean of the API-generated starter commits.
+          rm -rf .github/ISSUE_TMPLATE
+          tar --exclude=.git -cf /tmp/left-eye-tree.tar .
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm -r --cached . || true
+          find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          git switch --orphan clean-release-history
+          tar -xf /tmp/left-eye-tree.tar
+          git add -A
+          git commit -m "Publish LEFT EYE privacy-hardened release"
+          git push --force origin HEAD:main
+
+      - name: Run release checks
+        run: npm test
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: Prepare static site
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          cp index.html app.js styles.css tailwind-config.js dist/
+          cp -R assets dist/assets
+          touch dist/.nojekyll
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: dist
+          include-hidden-files: true
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

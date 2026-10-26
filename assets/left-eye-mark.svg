@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="LEFT EYE mark">
+ <rect width="64" height="64" rx="16" fill="#08080c"/>
+ <path d="M8 32C17 18 26 13 32 13s15 5 24 19C47 46 38 51 32 51S17 46 8 32Z" fill="none" stroke="#fb7185" stroke-width="3.5"/>
+ <circle cx="32" cy="32" r="10" fill="#e11d48"/>
+ <circle cx="32" cy="32" r="4" fill="#f8fafc"/>
+ <path d="M32 5V13M32 51V59M5 32H13M51 32H59" stroke="#22d3ee" stroke-width="2" stroke-linecap="round"/>
+</svg>
